@@ -23,12 +23,14 @@ jobs:
 
       - if: "!steps.bumpr-check.outputs.skip"
         name: Bump version
-        run: VERSION=${{ steps.bumpr.outputs.next_version }} make bump
+        run: |
+          VERSION=${{ steps.bumpr-check.outputs.next_version }}
+          VERSION=${VERSION#v} make bump
 
       - if: "!steps.bumpr-check.outputs.skip"
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Bump version to ${{ steps.bumpr.outputs.next_version }}"
+          commit_message: "Bump version to ${{ steps.bumpr-check.outputs.next_version }}"
 
       - id: bumpr
         if: "!startsWith(github.ref, 'refs/tags/')"
