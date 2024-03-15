@@ -1,0 +1,1108 @@
+openapi: 3.0.3
+info:
+  title: Zamzar API
+  description: Zamzar provides a simple API for fast, scalable, high-quality file conversion for 100s of formats.
+  termsOfService: 'http://developers.zamzar.com'
+  contact:
+    email: api-sdks@zamzar.com
+  license:
+    name: MIT
+    url: 'https://opensource.org/licenses/MIT'
+  version: 0.0.1
+servers:
+  - url: 'https://api.zamzar.com/v1'
+    description: Production Server
+  - url: 'https://sandbox.zamzar.com/v1'
+    description: Test Server
+externalDocs:
+  description: Find out more about the Zamzar API
+  url: 'https://developers.zamzar.com/docs'
+tags:
+  - name: Welcome
+    description: Get started with the Zamzar API
+  - name: Account
+    description: View account and plan information
+  - name: Files
+    description: 'Create, retrieve or delete files'
+  - name: Formats
+    description: List supported source and target formats
+  - name: Imports
+    description: 'Import files from an external URL, (S)FTP server or Amazon S3 bucket'
+  - name: Jobs
+    description: Start a new conversion job plus related operations
+paths:
+  /:
+    get:
+      summary: Welcome
+      operationId: welcome
+      responses:
+        '200':
+          description: Welcome to the Zamzar API
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Welcome message
+                    example: Welcome to the Zamzar API
+        '401':
+          $ref: '#/components/responses/401'
+      description: Prints a welcome message; useful for checking connectivity to the API
+      tags:
+        - Welcome
+  /account:
+    get:
+      summary: Retrieve account information
+      operationId: getAccount
+      tags:
+        - Account
+      responses:
+        '200':
+          description: Your account and plan information. Use the data within the response body or within the response headers to determine your current credits remaining for the current billing period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            Zamzar-Credits-Remaining:
+              $ref: '#/components/headers/Zamzar-Credits-Remaining'
+            Zamzar-Test-Credits-Remaining:
+              $ref: '#/components/headers/Zamzar-Test-Credits-Remaining'
+        '401':
+          $ref: '#/components/responses/401'
+      description: 'Retrieve your account and plan information, including the number of production and test credits remaining for the current billing period.'
+  /files:
+    get:
+      tags:
+        - Files
+      summary: Retrieve a list of files
+      operationId: listFiles
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            example: 10
+          description: Limit the number of results (max 50)
+        - in: query
+          name: after
+          required: false
+          schema:
+            type: integer
+            example: 123456
+          description: Retrieve files after the specified fileId
+        - in: query
+          name: before
+          required: false
+          schema:
+            type: integer
+            example: 123456
+          description: Retrieve files before the specified fileId
+      responses:
+        '200':
+          description: A list of source and associated target (converted) files within the `data` array.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Files'
+          headers:
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            Zamzar-Credits-Remaining:
+              $ref: '#/components/headers/Zamzar-Credits-Remaining'
+            Zamzar-Test-Credits-Remaining:
+              $ref: '#/components/headers/Zamzar-Test-Credits-Remaining'
+      description: 'Retrieve a list of files which have been uploaded, imported or submitted for conversion. Files are ordered by the most recent first. Expired files are not included.'
+    post:
+      tags:
+        - Files
+      summary: Upload a file
+      operationId: uploadFile
+      requestBody:
+        description: ''
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: Provide the file to be uploaded
+                  format: binary
+                name:
+                  type: string
+                  description: Specify the name of the file
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+      description: 'Upload a local file which can be used as input to a conversion job. Ensure the file is a [format supported by the API](https://developers.zamzar.com/formats) and does not exceed the maximum size of [your plan](https://developers.zamzar.com/user).'
+  '/files/{fileId}':
+    get:
+      tags:
+        - Files
+      summary: Retrieve metadata for a specific file
+      operationId: getFileById
+      parameters:
+        - in: path
+          name: fileId
+          schema:
+            type: integer
+          required: true
+          description: Numeric id of the file to get
+          example: 123456
+      responses:
+        '200':
+          description: Metadata for a specific file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '404':
+          description: Resource is not available because it has been deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+        '410':
+          description: Resource has expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+      description: 'Retrieve the metadata for a file which has been uploaded, imported or converted.'
+    delete:
+      tags:
+        - Files
+      summary: Delete a file
+      operationId: deleteFileById
+      parameters:
+        - in: path
+          name: fileId
+          schema:
+            type: integer
+          required: true
+          description: Numeric id of the file to delete
+          example: 123456
+      responses:
+        '200':
+          description: File deleted successfully. The response will contain the metadata for the deleted file (but not the content).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+      description: 'Delete our copy of a file which has been uploaded, imported or converted.'
+  '/files/{fileId}/content':
+    get:
+      tags:
+        - Files
+      summary: Retrieve the content of a file
+      operationId: getFileContentById
+      parameters:
+        - in: path
+          name: fileId
+          schema:
+            type: integer
+          required: true
+          description: Numeric id of the file to get the content for
+          example: 123456
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                description: eg
+                example: attachment; filename="name.pdf"
+          x-is-file: true
+        '201':
+          description: |-
+            The body of the response will contain the contents of a file in which case you can download the file data directly:
+
+            ```
+            HTTP/1.1 200 OK
+            Content-Length: 15311
+            Content-Disposition: attachment; filename="portrait.png"
+            Zamzar-Test-Credits-Remaining: 97
+            Zamzar-Credits-Remaining: 343
+            Content-Type: image/png; charset=binary
+
+            [Binary content of portrait.png]
+            ```
+
+            ### When using cURL
+
+            Save the content of a file to disk using curl options `-L` (follow redirects), `-O` (Write output to a local file) and `-J` (use the server-specified Content-Disposition filename). Or specify your own filename by redirecting the output of your HTTP call:
+
+            ```shell
+            curl --request GET \
+              --url https://api.zamzar.com/v1/files/123456/content \
+              --header 'Authorization: Basic xxxxxx' \
+              --header 'Content-Type: application/json' -L \
+             -L
+             -O \
+             -J
+              > converted.png
+            ```
+          headers:
+            header-0:
+              schema:
+                type: string
+        '307':
+          description: |-
+            Instruct your client code to follow the redirect link specified in the `Location` header of the response in order to download the file:
+
+            ```
+            HTTP/1.1 307 Temporary Redirect
+            Content-Length: 0
+            Location: https://someotherlocation.com/file
+            Zamzar-Test-Credits-Remaining: 97
+            Zamzar-Credits-Remaining: 343
+            Content-Type: application/json; charset=utf-8
+            ```
+
+            ### When using cUrl
+
+            Save the content of a file to disk using curl options `-L` (follow redirects), `-O` (Write output to a local file) and `-J` (use the server-specified Content-Disposition filename). Or specify your own filename by redirecting the output of your HTTP call:
+
+            ```shell
+            curl --request GET \
+              --url https://api.zamzar.com/v1/files/123456/content \
+              --header 'Authorization: Basic xxxxxx' \
+              --header 'Content-Type: application/json' -L \
+             -L
+             -O \
+             -J
+              > converted.png
+            ```
+      description: Retrieve the contents of a file which has been converted using the `/jobs` endpoint. The content of files which have been uploaded or converted can also be retrieved.
+      x-is-file: true
+  /formats:
+    get:
+      tags:
+        - Formats
+      summary: List all formats
+      operationId: listFormats
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            example: 10
+          description: Limit the number of results (max 50)
+        - in: query
+          name: after
+          required: false
+          schema:
+            type: string
+            example: mpg
+          description: Retrieve formats after the specified format
+        - in: query
+          name: before
+          required: false
+          schema:
+            type: string
+            example: mpg
+          description: Retrieve formats before the specified format
+      responses:
+        '200':
+          description: |-
+            Source formats are ordered alphabetically within the `data` array of formats and include the target formats and associated cost of conversion.
+
+            A `paging` object is included within the results, with each page having a limit of 50 records by default. Request the next page by using the `after` parameter in reference to the `last` property within the paging object of the current response.
+
+            For example to retrieve the next page of formats after the `msg` format:
+
+            ```
+            https://api.zamzar.com/v1/formats/?after=msg
+            ```
+
+            To limit the results to 10 records:
+
+            ```
+            https://api.zamzar.com/v1/formats/?after=msg&limit=10
+            ```
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Formats'
+      description: Retrieve a list of all source formats which have one or more target (conversion) formats.
+  '/formats/{format}':
+    get:
+      tags:
+        - Formats
+      summary: Retrieve a specific format
+      operationId: getFormatById
+      parameters:
+        - in: path
+          name: format
+          schema:
+            type: string
+          required: true
+          description: The format to retrieve
+          example: doc
+      responses:
+        '200':
+          description: |-
+            A specific source format and valid target formats.
+
+            ```json
+            {
+              "name": "doc",
+              "targets": [
+                {
+                  "name": "docx",
+                  "credit_cost": 1
+                },
+                {
+                  "name": "pdf",
+                  "credit_cost": 1
+                }
+              ]
+            }
+            ```
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Format'
+        '404':
+          description: Unsupported Format.
+      description: |
+        Retrieve a specific format and the cost of performing a conversion to one or more target formats.
+  /imports:
+    get:
+      tags:
+        - Imports
+      summary: Retrieve a list of all imports
+      description: Retrieve a list of all imports
+      operationId: listImports
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+          description: Limit the number of results (max 50)
+        - in: query
+          name: after
+          required: false
+          schema:
+            type: integer
+          description: Retrieve imports after the specified importId
+        - in: query
+          name: before
+          required: false
+          schema:
+            type: integer
+          description: Retrieve imports before the specified importId
+      responses:
+        '200':
+          description: A list of all imports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Imports'
+        '504':
+          description: Gateway Timeout
+    post:
+      tags:
+        - Imports
+      summary: Start an Import
+      description: Start an Import
+      operationId: startImport
+      requestBody:
+        description: 'Start an import for a HTTP/HTTPS url, (S)FTP file or S3 bucket'
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - url
+              properties:
+                url:
+                  type: string
+                  description: 'Provide a url in the form HTTP(S), (S)FTP or S3'
+                filename:
+                  type: string
+                  description: Override the filename provided in the url
+      responses:
+        '201':
+          description: Import submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Import'
+  '/imports/{importId}':
+    get:
+      tags:
+        - Imports
+      summary: Retrieve a specific import
+      description: Retriefe a specific import
+      operationId: getImportById
+      parameters:
+        - in: path
+          name: importId
+          schema:
+            type: integer
+          required: true
+          description: Numeric id of the import to get
+      responses:
+        '200':
+          description: Information about a specific import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Import'
+  /jobs:
+    get:
+      tags:
+        - Jobs
+      summary: Retrieve a list of all jobs
+      description: Retrieve a list of all jobs
+      operationId: listJobs
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Limit the number of results (max 50)
+          example: 25
+        - in: query
+          name: after
+          required: false
+          schema:
+            type: integer
+          description: Retrieve jobs after the specified jobId
+          example: 42
+        - in: query
+          name: before
+          required: false
+          schema:
+            type: integer
+          description: Retrieve jobs after the specified jobId
+          example: 42
+      responses:
+        '200':
+          description: A list of all jobs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jobs'
+    post:
+      description: |-
+        Submit a conversion job for a local file, an uploaded file, a remote URL or S3 bucket.
+
+        ### Starting a job for a local file
+        To start a conversion job and upload a source file in a single request, issue a multipart POST request to the jobs endpoint. One part of the request should specify the target format and (optionally) a source format:
+
+         - `source_file`: The binary data of the source file containing the following headers:
+           - `Content-Type` - an Internet media type that indicates the format of the data in the body of the request
+           - `Content-Length` - the size, in bytes, of the data in the body of the request
+         - `target_format`: the identifying name of the format that `source_file` will be converted to
+         - `source_format`: optionally the identifying name of the format of the `source_file` (and is used to specify a source format that is different to the extension of the `source_file`)
+
+        ### Starting a job for a url
+        To start a conversion job for a source file that resides on another server, issue a POST request to the jobs endpoint with the following parameters:
+
+          - `source_file`: The url of the file to be converted. Examples:
+            - `http://www.example.com/logo.png`
+            - `https://www.example.com/logo.png`
+            - `https://username:password@www.example.com/logo.png`
+            - `ftp://ftp.example.com/logo.png`
+            - `ftp://username:password@ftp.example.com/logo.png`
+            - `sftp://username:password@sftp.example.com/logo.png`
+          - `target_format`: the identifying name of the format that `source_file` will be converted to
+          - `source_format`: optionally the identifying name of the format of the `source_file` (and is used to specify a source format that is different to the extension of the `source_file`)
+
+        ### Starting a job for an Amazon S3 file
+        To start a conversion job for a source file that resides on Amazon's Simple Storage Service (S3), first determine whether you need to setup any credentials to access the file. If needed you can configure access to Amazon S3 via the [Connected Services](https://developers.zamzar.com/user/services) page.
+
+        Next, determine the S3 URL to send to our API. The S3 URL will use one of the styles shown below. For private files, note that CREDENTIAL_NAME must match exactly the credential name you have used on the [Connected Services](https://developers.zamzar.com/user/services) page.
+
+          - Public file - `s3://my-bucket-name/logo.png`
+          - Private file - `s3://CREDENTIAL_NAME@my-bucket-name/logo.png`
+
+        Once you have determined the S3 URL, issue a POST request to the jobs endpoint with the following parameters:
+
+          - `source_file`: the Amazon S3 url of the file to be converted
+          - `target_format`: the identifying name of the format that `source_file` will be converted to
+          - `source_format`: optionally the identifying name of the format of the `source_file` (and is used to specify a source format that is different to the extension of the `source_file`)
+
+        ### Starting a job for a file which has already been uploaded
+        To start a job for a file that you’ve already uploaded to our servers, issue a POST request to the jobs endpoint, with the following arguments:
+
+          - `source_file`: the unique identifier of the file that will be converted
+          - `target_format`: the identifying name of the format that `source_file` will be converted to
+      tags:
+        - Jobs
+      summary: Submit a conversion job
+      operationId: submitJob
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              oneOf:
+                - type: object
+                  required:
+                    - source_file
+                    - target_format
+                  properties:
+                    source_file:
+                      type: string
+                      description: Binary data of the source file
+                      format: binary
+                    target_format:
+                      type: string
+                      description: The name of the format to convert the file to
+                      example: bmp
+                    source_format:
+                      type: string
+                      description: Optional. The source format if the file does not have an extension or if the actual format is different to the extension
+                      example: png
+                    export_url:
+                      type: string
+                      description: Optional. The path to a (S)FTP folder or S3 bucket where the converted file will be transferred after completion
+                      example: 's3://CREDENTIAL_NAME@my-bucket-name/logo.png'
+                    options:
+                      type: object
+                      description: Optional. Specify additional options for the conversion
+                      additionalProperties: true
+                - type: object
+                  required:
+                    - source_file
+                    - target_format
+                  properties:
+                    source_file:
+                      type: string
+                      description: URL of the source file
+                      format: url
+                    target_format:
+                      type: string
+                      description: The name of the format to convert the file to
+                      example: bmp
+                    source_format:
+                      type: string
+                      description: Optional. The source format if the file does not have an extension or if the actual format is different to the extension
+                      example: png
+                    export_url:
+                      type: string
+                      description: Optional. The path to a (S)FTP folder or S3 bucket where the converted file will be transferred after completion
+                      example: 's3://CREDENTIAL_NAME@my-bucket-name/logo.png'
+                    options:
+                      type: object
+                      description: Optional. Specify additional options for the conversion
+                      additionalProperties: true
+                - type: object
+                  required:
+                    - source_file
+                    - target_format
+                  properties:
+                    source_file:
+                      type: integer
+                      description: ID of the source file
+                    target_format:
+                      type: string
+                      description: The name of the format to convert the file to
+                      example: bmp
+                    export_url:
+                      type: string
+                      description: Optional. The path to a (S)FTP folder or S3 bucket where the converted file will be transferred after completion
+                      example: 's3://CREDENTIAL_NAME@my-bucket-name/logo.png'
+                    options:
+                      type: object
+                      description: Optional. Specify additional options for the conversion
+                      additionalProperties: true
+        description: ''
+      responses:
+        '200':
+          description: Job submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+  '/jobs/{jobId}':
+    get:
+      tags:
+        - Jobs
+      summary: Retrieve a specific job
+      description: Retrieve a specific job
+      operationId: getJobById
+      parameters:
+        - in: path
+          name: jobId
+          schema:
+            type: integer
+          required: true
+          description: Numeric id of the job to get
+      responses:
+        '200':
+          description: Information about a specific job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+    delete:
+      tags:
+        - Jobs
+      summary: Cancel a job
+      description: Cancel a job
+      operationId: cancelJobById
+      parameters:
+        - in: path
+          name: jobId
+          schema:
+            type: integer
+          required: true
+          description: Numeric id of the job to cancel
+      responses:
+        '200':
+          description: Job cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+components:
+  headers:
+    X-RateLimit-Limit:
+      description: The number of allowed requests in the current period
+      schema:
+        type: integer
+      example: 600
+    X-RateLimit-Remaining:
+      description: The number of remaining requests in the current period
+      schema:
+        type: integer
+      example: 597
+    Zamzar-Credits-Remaining:
+      description: The number of production credits remaining in the current billing period
+      schema:
+        type: integer
+      example: 100
+    Zamzar-Test-Credits-Remaining:
+      description: The number of test credits remaining in the current billing period
+      schema:
+        type: integer
+      example: 90
+  schemas:
+    Account:
+      type: object
+      description: Your current subscription plan and the number of conversions that you have remaining in this billing period.
+      properties:
+        test_credits_remaining:
+          type: integer
+          description: The number of test conversion credits remaining in this billing period (free)
+          format: int32
+        credits_remaining:
+          type: integer
+          description: The number of conversion credits remaining in this billing period (included as part of your plan)
+          format: int32
+        plan:
+          type: object
+          properties:
+            name:
+              type: string
+              description: The name used to describe this plan
+            price_per_month:
+              type: number
+              description: The monthly subscription cost for this plan
+              format: float
+            conversions_per_month:
+              type: integer
+              description: The number of conversion credits included in this plan per month
+              format: int32
+            maximum_file_size:
+              type: integer
+              description: The maximum size (in bytes) of files that can be uploaded with this plan; or `null` if this plan has no such cap.
+              format: int64
+              nullable: true
+      example:
+        test_credits_remaining: 98
+        credits_remaining: 97
+        plan:
+          name: Free
+          price_per_month: 0
+          conversions_per_month: 100
+          maximum_file_size: 1024
+    Errors:
+      type: object
+      description: 'When a response contains a `4xx` or `5xx` response code, the body of the request will contain one or more error objects. Problems'
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      description: 'An error object containing a message, code and context. Returned within an array of `errors` when a response contains a `4xx` or `5xx` code.'
+      properties:
+        code:
+          type: integer
+          description: The unique identifier for the type of error. `1x` relates to problems with the content of the request. `2x` relates to the nature of the request. `3x` relates to problems with the service.
+          format: int32
+          example: 22
+        message:
+          type: string
+          description: The description of the error
+          example: unrecognised API version
+        context:
+          type: object
+          description: Further information about the cause of the error (only included for some error codes)
+          properties:
+            description:
+              type: string
+            value:
+              type: string
+          example:
+            requested_version: v42
+            supported_versions: v1
+      example:
+        message: an invalid value was specified for a parameter
+        code: 10
+        context:
+          parameter: target_format
+          reason: applescript is not a supported format
+    Exports:
+      type: array
+      description: An array of objects representing the process of copying converted files to the location specified in the export_url (when submitting a job via the `/jobs` endpoint)
+      items:
+        $ref: '#/components/schemas/Export'
+    Export:
+      type: object
+      description: An object representing the process of copying converted files to the location specified in the `export_url` (when submitting a job via the `/jobs` endpoint). The `status` will be set to `initialising` or `successful`.
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: The unique identifier assigned to the export
+          format: int32
+        url:
+          type: string
+          description: The URL of the resulting (exported) file
+        status:
+          type: string
+          description: 'The current status of the export, can be one of `initialising`, `uploading`, `successful` or `failed`'
+        failure:
+          $ref: '#/components/schemas/Failure'
+      example:
+        id: 1
+        url: 's3://CREDENTIAL_NAME@my-bucket-name/logo.jpg'
+        status: successful
+    Failure:
+      type: object
+      description: 'If a process fails, the response will include a failure object to describe the error. If a process is either incomplete or successful, the failure object will not be present.'
+      properties:
+        code:
+          type: integer
+          description: Can be used to determine what action to take
+          format: int32
+        message:
+          type: string
+          description: Provides an explanation of the failure (which could also be displayed to your users)
+      example:
+        code: 5
+        message: A file named portrait.png already exists
+    Files:
+      type: object
+      description: Contains a paged collection of files. Newer files appear before older files. Expired files are not included.
+      properties:
+        data:
+          type: array
+          description: An array of file objects
+          items:
+            $ref: '#/components/schemas/File'
+        paging:
+          $ref: '#/components/schemas/PagingNumeric'
+    File:
+      type: object
+      description: 'Represents a file which has been uploaded, imported or converted.'
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          description: The unique identifier assigned to the file
+          format: int32
+        key:
+          type: string
+          description: The API key which was used to create the file
+        name:
+          type: string
+          description: The name that was specified for the file (must not be more than 256 chars)
+        size:
+          type: integer
+          format: int64
+          description: 'The size of the file in bytes, derived from the content of the file'
+        format:
+          type: string
+          description: The identifier of the format of the file
+        created_at:
+          type: string
+          description: 'The time at which the file was created on Zamzar servers ((UTC in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601)))'
+          format: date-time
+      example:
+        id: 3
+        key: apikey
+        name: filename.jpg
+        size: 4096
+        format: jpg
+        created_at: '2022-01-01T14:15:22Z'
+    Formats:
+      type: object
+      description: Contains a paged collection of formats listed in alphabetical order. The `targets` array represent the formats which the source format `name` can be converted to and the associated cost (in credits).
+      properties:
+        paging:
+          $ref: '#/components/schemas/PagingString'
+        data:
+          type: array
+          description: An array of source and target formats ordered alphabetically.
+          items:
+            $ref: '#/components/schemas/Format'
+    Format:
+      type: object
+      description: Represents the source format and an array of valid target formats.
+      properties:
+        name:
+          type: string
+          description: 'The name of the format, synonymous with `source format`'
+        targets:
+          type: array
+          description: 'The conversions that Zamzar supports for this format, synonymous with `target formats`'
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: The name of the target format
+              credit_cost:
+                type: integer
+                description: The number of base credits that are charged when scheduling a job for this conversion
+                format: int32
+      example:
+        name: doc
+        targets:
+          - name: docx
+            credit_cost: 1
+          - name: pdf
+            credit_cost: 1
+    Imports:
+      type: object
+      description: Contains a paged collection of import objects. Newer imports appear before older imports.
+      properties:
+        paging:
+          $ref: '#/components/schemas/PagingNumeric'
+        data:
+          type: array
+          description: An array of import objects
+          items:
+            $ref: '#/components/schemas/Import'
+    Import:
+      type: object
+      description: 'Represents the process of copying a file from an external URL, (S)FTP server, or an Amazon S3 bucket.'
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: The unique identifier assigned to the import
+          format: int32
+        key:
+          type: string
+          description: The API key used to create the import.
+        url:
+          type: string
+          description: The URL to the file being imported.
+        status:
+          type: string
+          description: The current status of the import
+          enum:
+            - initialising
+            - downloading
+            - successful
+            - failed
+          example: failed
+        failure:
+          $ref: '#/components/schemas/Failure'
+        file:
+          $ref: '#/components/schemas/File'
+        created_at:
+          type: string
+          description: 'The time at which the import was created on Zamzar servers ((UTC in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601)))'
+          format: date-time
+        finished_at:
+          type: string
+          description: 'The time at which the import finished if successful, or null otherwise ((UTC in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601)))'
+          format: date-time
+          nullable: true
+      example:
+        id: 1
+        key: apikey
+        url: 'http://www.example.com/logo.png'
+        status: failed
+        failure:
+          code: 11
+          message: an invalid value was specified for a parameter
+          context:
+            parameter: url
+            reason: http URLs must not include a password (use https instead)
+        created_at: '2022-01-01T14:15:22Z'
+        finished_at: '2022-01-01T14:15:22Z'
+    Jobs:
+      type: object
+      description: Contains a paged collection of job objects. Newer jobs appear before older jobs.
+      properties:
+        paging:
+          $ref: '#/components/schemas/PagingNumeric'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+    Job:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: The unique identifier assigned to the job
+          example: 1
+        key:
+          type: string
+          description: The API key used to create the job
+          example: apikey
+        status:
+          type: string
+          description: The current status of the job
+          enum:
+            - initialising
+            - converting
+            - successful
+            - failed
+            - cancelled
+          example: failed
+        failure:
+          $ref: '#/components/schemas/Failure'
+        sandbox:
+          type: boolean
+          description: Indicates whether or not the job was processed on the developer sandbox (i.e. at no cost)
+          example: false
+        created_at:
+          type: string
+          description: 'The time at which the job was created (UTC in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601))'
+          format: date-time
+          example: '2022-01-01T14:15:22Z'
+        finished_at:
+          type: string
+          description: 'The time at which the job finished if successful, or null otherwise (UTC in [ISO_8601](https://en.wikipedia.org/wiki/ISO_8601))'
+          format: date-time
+          nullable: true
+          example: '2022-01-01T14:15:22Z'
+        import:
+          $ref: '#/components/schemas/Import'
+        source_file:
+          $ref: '#/components/schemas/File'
+        target_files:
+          type: array
+          description: The output from the job
+          items:
+            $ref: '#/components/schemas/File'
+        target_format:
+          type: string
+          description: The name of the format to which `source_file` is being converted
+          example: bmp
+        credit_cost:
+          type: integer
+          description: The cost in conversion credits of the job
+          format: int32
+          example: 1
+        export_url:
+          type: string
+          description: The location to which all converted files will be copied
+          example: 's3://CREDENTIAL_NAME@my-bucket-name/logo.jpg'
+        exports:
+          $ref: '#/components/schemas/Exports'
+      description: Represents the process of converting a file to another format.
+    PagingNumeric:
+      type: object
+      properties:
+        total_count:
+          type: integer
+          description: The number of elements in the entire collection
+          format: int32
+        first:
+          type: integer
+          description: The identifier of the first element in this page of the collection
+          format: int32
+        last:
+          type: integer
+          description: The identifier of the last element in this page of the collection
+          format: int32
+        limit:
+          type: integer
+          description: The maximum number of elements this page could contain
+          format: int32
+    PagingString:
+      type: object
+      properties:
+        total_count:
+          type: integer
+          description: The number of elements in the entire collection
+          format: int32
+        first:
+          type: string
+          description: The identifier of the first element in this page of the collection
+        last:
+          type: string
+          description: The identifier of the last element in this page of the collection
+        limit:
+          type: integer
+          description: The maximum number of elements this page could contain
+          format: int32
+      example:
+        total_count: 100
+        first: docx
+        last: pdf
+        limit: 50
+      description: 'When you request a list of of all resources of any type (files, formats, jobs), you will receive a paged collection as a response. A paged collection allows you to view a subset of the entire collection (limited to 50 elements) and makes it easy to implement pagination in your application. Use the `limit` parameter to limit the number of results and the `after` parameter to request the next page of results (based on the value of `last` within the paging object).'
+  responses:
+    '401':
+      description: Forbidden - the request is not using authentication. The response will include an array of `errors`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Errors'
+          example:
+            errors:
+              - code: 21
+                message: resource does not exist
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+security:
+  - ApiKeyAuth: []
