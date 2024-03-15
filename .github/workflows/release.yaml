@@ -32,7 +32,7 @@ jobs:
 
       - id: bumpr
         if: "!startsWith(github.ref, 'refs/tags/')"
-        name: Check for version bump
+        name: Perform version bump
         uses: haya14busa/action-bumpr@v1
 
       - if: "!steps.bumpr.outputs.skip"
