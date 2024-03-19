@@ -1046,6 +1046,10 @@ components:
           example: 's3://CREDENTIAL_NAME@my-bucket-name/logo.jpg'
         exports:
           $ref: '#/components/schemas/Exports'
+        options:
+          type: object
+          description: Additional options for the conversion
+          additionalProperties: true
       description: Represents the process of converting a file to another format.
     PagingNumeric:
       type: object
