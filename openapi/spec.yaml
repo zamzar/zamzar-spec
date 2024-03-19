@@ -433,7 +433,7 @@ paths:
         description: 'Start an import for a HTTP/HTTPS url, (S)FTP file or S3 bucket'
         required: true
         content:
-          multipart/form-data:
+          application/x-www-form-urlencoded:
             schema:
               type: object
               required:
