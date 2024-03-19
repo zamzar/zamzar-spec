@@ -804,7 +804,13 @@ components:
           description: The URL of the resulting (exported) file
         status:
           type: string
-          description: 'The current status of the export, can be one of `initialising`, `uploading`, `successful` or `failed`'
+          description: The current status of the export
+          enum:
+            - initialising
+            - uploading
+            - successful
+            - failed
+          example: successful
         failure:
           $ref: '#/components/schemas/Failure'
       example:
