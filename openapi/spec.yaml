@@ -643,6 +643,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Job'
+  /jobs/successful:
+    get:
+      tags:
+        - Jobs
+      summary: Retrieve a list of all successful jobs
+      description: Retrieve a list of all successful jobs
+      operationId: listSuccessfulJobs
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Limit the number of results (max 50)
+          example: 25
+        - in: query
+          name: after
+          required: false
+          schema:
+            type: integer
+          description: Retrieve jobs after the specified jobId
+          example: 42
+        - in: query
+          name: before
+          required: false
+          schema:
+            type: integer
+          description: Retrieve jobs after the specified jobId
+          example: 42
+      responses:
+        '200':
+          description: A list of all successful jobs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jobs'
   '/jobs/{jobId}':
     get:
       tags:
