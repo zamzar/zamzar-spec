@@ -637,7 +637,7 @@ paths:
                       additionalProperties: true
         description: ''
       responses:
-        '200':
+        '201':
           description: Job submitted successfully
           content:
             application/json:
